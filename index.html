@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<HTML>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto" rel="stylesheet">
+    <HEAD>
+        <STYLE>* {margin: 0; padding: 0;}body {background: black; font-family: 'Roboto', serif; font-size: 18px; max-width: 1280px; margin: 0 auto; text-align: center;}h1 {margin: 1em;margin-top: 4em;display: block;z-index: 99999;color: #ababab;font-weight: 900;text-align: center;}#btn {font-weight: 900;z-index:99999;}form {max-width: 1280px;margin: 0 auto;display: flex;align-items: center;}input, button {text-align: center;width: 100%;padding: 1em;}a, h2 {color: #ababab;font-size: 1.4em;font-weight: 700;}a:hover {color: green;transition: 0.3s ease;}progress {width: 100%;height: 3em;}
+            #cont{margin-top: 2em;font-size: 1.5em;color: #68ff0a;}
+            img {position: absolute;top: 0;left: 0;right: 0;bottom: 0;z-index: -1;margin: 0 auto;opacity: 0.5;}
+        </STYLE>
+        <TITLE>projectFLY Downloader</TITLE>
+    </HEAD>
+
+    <BODY>
+        <img src="https://i.pinimg.com/originals/e3/eb/31/e3eb311af2c90bd23b9b44d4c8353aa9.gif">
+        <h1>PROJECTFLY DOWNLOADER</h1>
+        <FORM>
+            <INPUT TYPE="TEXT" PLACEHOLDER="PASTE YOUR AUTHORIZATION TOKEN" ID="simbólico">
+            <BUTTON TYPE="BUTTON" ID="BTN">CLICK TO DOWNLOAD</BUTTON>
+        </FORM>
+        <BR />
+        <A HREF="https://github.com/mtchdev/pf-logbook/blob/master/auth_token.md" TARGET="_blank">Click to find out how to get auth token</A>
+        <BR /><BR />
+        <A HREF="https://exporter.miitch.io/" TARGET="_blank">Inspired by exporter.miitch.io</A>
+        <BR /><BR />
+        <H2>THIS SITE GIVE YOUR JSON DATA INCLUDING POSITIONS.</H2>
+        <BR />
+        <H2>You MUST shut projectFLY before starting downloads or else auth token may be invalid.</H2>
+        <BR />
+        <H2>You can view source in browser. All data is processed on your machine.</H2>
+
+        <DIV ID="cont">
+            Status: <SPAN ID="STATUS">Not Started</SPAN>
+            <BR />
+            <PROGRESS ID="PROGRESS" value="0" max="100"></PROGRESS>
+        </DIV>
+    </BODY>
+
+    <FOOTER>
+        <SCRIPT SRC="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js"></SCRIPT>
+        <SCRIPT SRC="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></SCRIPT>
+        <SCRIPT TYPE="TEXT/JAVASCRIPT">
+            var BTN = document.getElementById('BTN');
+            BTN.onclick = async function(){
+                var simbólico = document.getElementById('simbólico').value;
+                if (simbólico.length < 10)return;
+                document.getElementById('simbólico').disabled = true;
+                document.getElementById('BTN').disabled = true;
+                document.getElementById('STATUS').innerText = 'Starting download...';
+                var cremallera=new JSZip();
+                await fetch("https://api.projectfly.co.uk/api/v3/fleet/global/users/registrations",{headers:{'Authorization':'Bearer'+simbólico}})
+                .then((respuesta) => {var json = respuesta.json().then(datos => {document.getElementById('STATUS').innerText = 'Downloading aircraft.json';cremallera.file('aircraft.json', JSON.stringify(datos.data), false);});});
+                await fetch("https://api.projectfly.co.uk/api/v3/bookings/logbook?page=0&filter",{headers:{ 'Authorization':'Bearer'+simbólico}})
+                .then((respuesta) => {
+                    var json = respuesta.json().then(async datos => {
+                        cremallera.file('logbook.json',JSON.stringify(datos.data),false);
+                        var vueloIds = datos.data.map(vuelo => vuelo.id);
+                        document.getElementById("PROGRESS").max=vueloIds.length;
+                        for (var i=0;i<vueloIds.length;i++) {
+                            document.getElementById('STATUS').innerText='Downloading flight '+i+' of '+vueloIds.length;
+                            await fetch('https://api.projectfly.co.uk/api/v3/bookings/'+vueloIds[i]+'/details',{headers:{'Authorization':'Bearer'+simbólico}})
+                            .then((resp2) => {
+                                var json2 = resp2.json().then(datos => {
+                                    cremallera.file('Flight '+vueloIds[i]+'.json', JSON.stringify(datos.data),false);
+                                    document.getElementById("PROGRESS").value=i;
+                                })
+                            })
+                        }
+                    }).then(() => {
+                        document.getElementById('STATUS').innerText = 'Done. Your .zip download will be ready in a minute!'
+                        cremallera.generateAsync({type:"blob"}).then(content => saveAs(content, "projectFLY Download - " + Date.now() + ".zip"))
+                    });
+                });
+            }
+        </SCRIPT>
+    </FOOTER>
+</HTML>
